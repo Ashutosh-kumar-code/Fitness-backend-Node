@@ -19,7 +19,7 @@ const io = new Server(server, {
         origin: '*',
     },
 });
-
+ 
 app.use(cors());
 app.use(express.json());
 
