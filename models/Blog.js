@@ -8,9 +8,10 @@ const BlogSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    authorRole: { type: String, enum: ['user', 'trainer'], required: true },
+    authorRole: { type: String, enum: ['user', 'trainer', 'brand'], required: true }, // Added 'brand'
     tags: { type: [String] }, // Blog categories or tags
     likes: { type: Number, default: 0 },
+    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Track users who liked
     comments: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         text: String,

@@ -3,9 +3,11 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
-const trainerRoutes = require('./routes/trainerRoutes');
+// const trainerRoutes = require('./routes/trainerRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const callRoutes = require('./routes/callRoutes');
+const blogRoutes = require('./routes/blogRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const http = require('http');
 const { Server } = require('socket.io');
 
@@ -23,8 +25,11 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/auth', authRoutes);
-app.use('/api/trainers', trainerRoutes);
+app.use('/api/user', authRoutes);
+app.use('/api/blog', blogRoutes);
+app.use('/api/admin', adminRoutes);
+// app.use('/api/trainers', trainerRoutes);
+app.use('/api/friend', callRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/call', callRoutes);
 
