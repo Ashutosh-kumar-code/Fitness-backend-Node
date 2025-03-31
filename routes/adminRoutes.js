@@ -1,7 +1,6 @@
 const express = require('express');
 const Admin = require('../models/Admin');
 const Blog = require('../models/Blog');
-const Brand = require('../models/Brand'); // Assuming Brand Model Exists
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -65,29 +64,6 @@ router.delete('/blog/:id', async (req, res) => {
     }
 });
 
-// ✅ **Verify Brand**
-router.put('/verify-brand/:id', async (req, res) => {
-    try {
-        const brand = await Brand.findById(req.params.id);
-        if (!brand) return res.status(404).json({ message: 'Brand not found' });
 
-        brand.isVerified = true;
-        await brand.save();
-
-        res.json({ message: 'Brand verified successfully', brand });
-    } catch (error) {
-        res.status(500).json({ message: 'Error verifying brand', error });
-    }
-});
-
-// ✅ **Get All Unverified Brands**
-router.get('/unverified-brands', async (req, res) => {
-    try {
-        const brands = await Brand.find({ isVerified: false });
-        res.json(brands);
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching unverified brands', error });
-    }
-});
 
 module.exports = router;
