@@ -25,6 +25,10 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+app.get("/",(req,res)=>{
+    res.send(`<h1>Welcome! to Fitness Project</h1>`)
+})
+
 app.use('/api/user', authRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/admin', adminRoutes);
