@@ -2,47 +2,87 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-
+const cloudinary = require('../config/cloudinory');
+const multer = require('multer');
 const router = express.Router();
 
+// Multer setup
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+  });
+  const upload = multer({ storage });
+
 // **User/Trainer Registration**
-router.post('/register', async (req, res) => {
-    const { name, email, password, role, bio, age, gender, city, profileImage, interests, experience, currentOccupation, availableTimings, tagline } = req.body;
-
+router.post('/register', upload.single('profileImage'), async (req, res) => {
+    const {
+      name,
+      email,
+      password,
+      role,
+      bio,
+      phoneNumber,
+      age,
+      gender,
+      city,
+      languages,
+      trainerType,
+      experience,
+      currentOccupation,
+      availableTimings,
+      tagline,
+      feesChat,
+      feesCall
+    } = req.body;
+  
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({
-            name,
-            email,
-            password: hashedPassword,
-            role,
-            bio,
-            age,
-            gender,
-            city,
-            profileImage,
-            interests,
-            followers: 0,
-            following: 0
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email already registered' });
+      }
+  
+      // Upload image to Cloudinary
+      let profileImageUrl = '';
+      if (req.file) {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'users'
         });
-
-        // If user is a trainer, add trainer-specific fields
-        if (role === 'trainer') {
-            user.experience = experience;
-            user.currentOccupation = currentOccupation;
-            user.availableTimings = availableTimings;
-            user.tagline = tagline;
-            user.verified = false;
-            user.rating = 0;
-        }
-
-        await user.save();
-        res.status(201).json({ message: `${role} registered successfully` });
-
+        profileImageUrl = result.secure_url;
+  
+        // Clean up uploaded file from local storage
+        fs.unlinkSync(req.file.path);
+      }
+  
+      const hashedPassword = await bcrypt.hash(password, 10);
+  
+      const user = new User({
+        name,
+        email,
+        password: hashedPassword,
+        role,
+        bio,
+        phoneNumber,
+        age,
+        gender,
+        city,
+        profileImage: profileImageUrl,
+        languages,
+        trainerType,
+        experience,
+        currentOccupation,
+        availableTimings,
+        tagline,
+        feesChat,
+        feesCall
+      });
+  
+      await user.save();
+      res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Error registering user', error });
+      console.error('Registration error:', error);
+      res.status(500).json({ message: 'Something went wrong' });
     }
-});
+  });
 
 // **Login API**
 router.post('/login', async (req, res) => {
@@ -55,38 +95,66 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, user });
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+
+        // exclude password from response
+        const { password: _, ...userData } = user.toObject();
+
+        res.json({ token, user: userData });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Error logging in' });
     }
 });
 
-// **Get Profile (User or Trainer)**
+
+// ===== Get Profile =====
 router.get('/profile/:id', async (req, res) => {
     try {
-        const user = await User.findById(req.params.id).select('-password');
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user);
+      const user = await User.findById(req.params.id).select('-password\n');
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      res.json(user);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching user profile' });
+      console.error('Fetch profile error:', error);
+      res.status(500).json({ message: 'Error fetching user profile' });
     }
-});
-
-// **Update Profile**
-router.put('/profile/update', async (req, res) => {
+  });
+  
+  // ===== Update Profile =====
+  router.put('/profile/update', upload.single('profileImage'), async (req, res) => {
     try {
-        const { userId, ...updateData } = req.body;
-        if (!userId) return res.status(400).json({ message: 'User ID is required' });
-
-        const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true }).select('-password');
-        res.json({ message: 'Profile updated successfully', user: updatedUser });
-
+      const { userId, password, ...updateData } = req.body;
+      if (!userId) return res.status(400).json({ message: 'User ID is required' });
+  
+      // Handle new profile image upload
+      if (req.file) {
+        const result = await cloudinary.uploader.upload(req.file.path, { folder: 'users' });
+        updateData.profileImage = result.secure_url;
+        fs.unlinkSync(req.file.path);
+      }
+  
+      // If password is being updated, hash it
+      if (password) {
+        updateData.password = await bcrypt.hash(password, 10);
+      }
+  
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      ).select('-password');
+  
+      res.json({ message: 'Profile updated successfully', user: updatedUser });
     } catch (error) {
-        res.status(500).json({ message: 'Error updating profile' });
+      console.error('Update profile error:', error);
+      res.status(500).json({ message: 'Error updating profile' });
     }
-});
+  });
 
 // **Get All Trainers with Filters**
 router.get('/trainers', async (req, res) => {
