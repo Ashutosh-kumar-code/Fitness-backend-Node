@@ -5,6 +5,8 @@ const AdminSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    commissionPercentage: { type: Number, required: true, default: 10 }, // Example commission percentage (10%)
+    minWithdrawAmount: { type: Number, required: true, default: 100 }, // Minimum withdrawal amount
 }, { timestamps: true });
 
 // Hash password before saving

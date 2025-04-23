@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
 const cloudinary = require('../config/cloudinory');
 const multer = require('multer');
 const router = express.Router();
@@ -156,63 +157,61 @@ router.get('/profile/:id', async (req, res) => {
     }
   });
 
-// **Get All Trainers with Filters**
-router.get('/trainers', async (req, res) => {
-    try {
-        const { name, rating, experience } = req.query;
-        let filters = { role: 'trainer' };
+// Get all verified trainers filtered by trainerType
+router.get('/verified-trainers', async (req, res) => {
+  try {
+      const { trainerType } = req.body;
 
-        if (name) filters.name = new RegExp(name, 'i');
-        if (rating) filters.rating = { $gte: rating };
-        if (experience) filters.experience = { $gte: experience };
+      let filters = { role: 'trainer', verified: true };
+      if (trainerType) filters.trainerType = new RegExp(trainerType, 'i');
 
-        const trainers = await User.find(filters).select('-password');
-        res.json(trainers);
-
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching trainers' });
-    }
+      const trainers = await User.find(filters).select('-password');
+      res.json(trainers);
+  } catch (error) {
+      res.status(500).json({ message: 'Error fetching verified trainers', error });
+  }
 });
 
-// Verify the brand
-router.put('/verify-brand', async (req, res) => {
-    try {
-        const { adminId, brandId } = req.body;
+// Get all unverified trainers
+router.get('/unverified-trainers', async (req, res) => {
+  try {
+      const trainers = await User.find({ role: 'trainer', verified: false }).select('-password');
+      res.json(trainers);
+  } catch (error) {
+      res.status(500).json({ message: 'Error fetching unverified trainers', error });
+  }
+});
 
-        // Check if the admin exists (Assumption: Only specific admins have permission)
-        const admin = await User.findById(adminId);
-        if (!admin || admin.role !== 'admin') {
-            return res.status(403).json({ message: 'Unauthorized: Only admins can verify brands' });
+
+// Verify a trainer
+router.put('/verify-trainer', async (req, res) => {
+    try {
+        const { adminId, trainerId } = req.body;
+
+        // Check if the admin exists in the Admin model
+        const admin = await Admin.findById(adminId);
+        if (!admin) {
+            return res.status(403).json({ message: 'Unauthorized: Only admins can verify trainers' });
         }
 
-        // Verify the brand
-        const brand = await User.findByIdAndUpdate(
-            brandId,
+        // Update the trainer's verified status
+        const trainer = await User.findByIdAndUpdate(
+            trainerId,
             { verified: true },
             { new: true }
         );
 
-        if (!brand || brand.role !== 'brand') {
-            return res.status(404).json({ message: 'Brand not found' });
+        if (!trainer || trainer.role !== 'trainer') {
+            return res.status(404).json({ message: 'Trainer not found' });
         }
 
-        res.json({ message: 'Brand verified successfully', brand });
+        res.json({ message: 'Trainer verified successfully', trainer });
 
     } catch (error) {
-        res.status(500).json({ message: 'Error verifying brand', error });
+        res.status(500).json({ message: 'Error verifying trainer', error });
     }
 });
 
-
-// get all verified brand list
-router.get('/brands', async (req, res) => {
-    try {
-        const brands = await User.find({ role: 'brand', verified: true }).select('-password');
-        res.json(brands);
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching brands', error });
-    }
-});
 
 
 module.exports = router;

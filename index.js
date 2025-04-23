@@ -7,7 +7,8 @@ const chatRoutes = require('./routes/chatRoutes');
 const callRoutes = require('./routes/callRoutes');
 const blogRoutes = require('./routes/blogRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-// const walletRoutes = require('./routes/walletRoute');
+const verificationRoutes = require('./routes/verificationRoutes');
+
 const http = require('http');
 const { Server } = require('socket.io');
 
@@ -37,6 +38,7 @@ app.use('/api/friend', callRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/call', callRoutes);
 // app.use('/wallet', walletRoutes);
+app.use('/api/verification', verificationRoutes);
 
 // Store connected users
 let users = {};

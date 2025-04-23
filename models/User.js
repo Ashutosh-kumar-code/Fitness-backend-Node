@@ -29,7 +29,28 @@ const UserSchema = new mongoose.Schema({
     feesCall: { type: Number },
     verified: { type: Boolean, default: false },
 
-    wallet: { type: Number, default: 0 }
+     // New fields for OTP
+     phoneVerified: { type: Boolean, default: false },
+     phoneVerificationCode: { type: String },
+     phoneVerificationExpires: { type: Date },
+
+    wallet: { type: Number, default: 0 },
+    subscriptions: [
+        {
+          trainer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+          subscribedAt: { type: Date, default: Date.now },
+          expiresAt: { type: Date } // 1 day from subscription time
+        }
+      ],
+        // Withdrawal tracking
+    withdrawals: [
+            {
+              amount: { type: Number },
+              requestedAt: { type: Date, default: Date.now },
+              status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+            }
+        ]
+      
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);
