@@ -16,7 +16,7 @@ const upload = multer({ storage });
 // 📝 Create Blog (with optional image upload)
 router.post('/create', upload.single('image'), async (req, res) => {
     try {
-        const { title, content, tags, userId, role } = req.body;
+        const { title, content, userId, role } = req.body;
         if (!userId || !role) return res.status(400).json({ message: 'User ID and role required' });
 
         let imageUrl = '';
@@ -29,7 +29,6 @@ router.post('/create', upload.single('image'), async (req, res) => {
         const blog = new Blog({
             title,
             content,
-            tags,
             author: userId,
             authorRole: role,
             image: imageUrl
@@ -116,8 +115,8 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
 // ❌ Delete Blog (Author )
 router.delete('/delete/:id', async (req, res) => {
     try {
-        const { userId, role } = req.body;
-        if (!userId || !role) return res.status(400).json({ message: 'User ID and role required' });
+        const { userId } = req.body;
+        if (!userId ) return res.status(400).json({ message: 'User ID required' });
 
         const blog = await Blog.findById(req.params.id);
         if (!blog) return res.status(404).json({ message: 'Blog not found' });

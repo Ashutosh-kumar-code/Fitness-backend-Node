@@ -10,7 +10,7 @@ const BlogSchema = new mongoose.Schema({
         required: true
     },
     authorRole: { type: String, enum: ['user', 'trainer'], required: true },
-    tags: { type: [String] },
+    // tags: { type: [String] },
     likes: { type: Number, default: 0 },
     likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     comments: [{
