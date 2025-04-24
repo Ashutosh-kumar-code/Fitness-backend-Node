@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const TrainerBankDetail = require('../models/TrainerBankDetail');
+const TrainerBankDetail = require('../models/TrainerBankDetails');
 const router = express.Router();
 
 // Save or update trainer bank details
