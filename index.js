@@ -9,6 +9,7 @@ const blogRoutes = require('./routes/blogRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const verificationRoutes = require('./routes/verificationRoutes');
 const bankDetailsRoute = require('./routes/bankDetails');
+const followRoutes = require('./routes/followRoutes');
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -41,6 +42,7 @@ app.use('/api/call', callRoutes);
 // app.use('/wallet', walletRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/bank', bankDetailsRoute);
+app.use('/api/follow', followRoutes);
 
 // Store connected users
 let users = {};

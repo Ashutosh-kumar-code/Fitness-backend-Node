@@ -84,3 +84,6 @@ router.get('/is-following', async (req, res) => {
     const isFollowing = await Follow.exists({ follower: userId, following: targetId });
     res.json({ isFollowing: !!isFollowing });
 });
+
+
+module.exports = router;
