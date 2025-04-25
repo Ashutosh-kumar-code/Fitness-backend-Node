@@ -1,6 +1,6 @@
 const express = require('express');
-// const razorpay = require('../config/razorpay'); 
-const Razorpay = require('razorpay');// your razorpayInstance
+const razorpay = require('../config/razorpay'); 
+// const Razorpay = require('razorpay');// your razorpayInstance
 const crypto = require('crypto');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
@@ -8,15 +8,19 @@ const Admin = require('../models/Admin');
 
 const router = express.Router();
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-  });
+// const razorpay = new Razorpay({
+//     key_id: process.env.RAZORPAY_KEY_ID,
+//     key_secret: process.env.RAZORPAY_KEY_SECRET,
+//   });
 
 // Razorpay API - Create Order
 router.post('/order', async (req, res) => {
     try {
         const { userId, trainerId, amount } = req.body;
+
+        console.log('KEY_ID:', process.env.RAZORPAY_KEY_ID);
+console.log('KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET, "====",userId, trainerId, amount);
+
 
         if (!userId || !trainerId || !amount)
             return res.status(400).json({ message: 'userId, trainerId, and amount are required' });
