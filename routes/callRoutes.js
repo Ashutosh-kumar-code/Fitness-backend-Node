@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Call = require('../models/Call');
+const Call = require('../models/Calls');
 const User = require('../models/User');
 
 // ✅ API 1: Start a call (deduct user wallet & pay trainer & save call)
