@@ -1,10 +1,17 @@
 const express = require('express');
-const razorpay = require('../config/razorpay'); // your razorpayInstance
+// const razorpay = require('../config/razorpay'); 
+const Razorpay = require('razorpay');// your razorpayInstance
 const crypto = require('crypto');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 
+
 const router = express.Router();
+
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
 
 // Razorpay API - Create Order
 router.post('/order', async (req, res) => {
