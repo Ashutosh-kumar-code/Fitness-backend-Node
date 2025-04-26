@@ -160,17 +160,23 @@ router.get('/profile/:id', async (req, res) => {
 // Get all verified trainers filtered by trainerType
 router.post('/verified-trainers', async (req, res) => {
   try {
-      const { trainerType } = req.body;
+    const { trainerType } = req.body;
 
-      let filters = { role: 'trainer', verified: true };
-      if (trainerType) filters.trainerType = new RegExp(trainerType, 'i');
+    let filters = { role: 'trainer', verified: true };
 
-      const trainers = await User.find(filters).select('-password');
-      res.json(trainers);
+    if (trainerType && trainerType.trim() !== "") {
+      filters.trainerType = { $regex: trainerType, $options: 'i' }; // correct regex format
+    }
+
+    const trainers = await User.find(filters).select('-password');
+    console.log("Filters:", filters);
+    console.log("Found trainers:", trainers.length);
+    res.json(trainers);
   } catch (error) {
-      res.status(500).json({ message: 'Error fetching verified trainers', error });
+    res.status(500).json({ message: 'Error fetching verified trainers', error });
   }
 });
+
 
 // Get all unverified trainers
 router.get('/unverified-trainers', async (req, res) => {

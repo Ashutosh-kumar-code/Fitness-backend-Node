@@ -124,21 +124,25 @@ console.log('KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET, "====",userId, train
 // routes/payment.js
 router.get('/status', async (req, res) => {
     const { userId, trainerId } = req.query;
+    if (!userId || !trainerId) {
+        return res.status(400).json({ error: 'Missing parameters' });
+    }
 
-    // Check if the user has already paid today
-    const existingPayment = await Payment.findOne({
-        userId,
-        trainerId,
-        date: {
-            $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
-            $lte: new Date(new Date().setHours(23, 59, 59, 999)), // End of today
-        },
-    });
+    const paymentRecord = await Payment.findOne({ userId, trainerId }).sort({ paidAt: -1 });
 
-    if (existingPayment) {
-        return res.status(200).json({ paidToday: true });
+    if (!paymentRecord) {
+        return res.json({ paidToday: false });
+    }
+
+    const now = moment();
+    const paidAt = moment(paymentRecord.paidAt);
+
+    const hoursDiff = now.diff(paidAt, 'hours');
+
+    if (hoursDiff < 24) {
+        return res.json({ paidToday: true });
     } else {
-        return res.status(200).json({ paidToday: false });
+        return res.json({ paidToday: false });
     }
 });
 
