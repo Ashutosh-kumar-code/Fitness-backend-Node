@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const Subscription = require('../models/SubscriptionSchema');
+const Payment = require('../models/Payment');
 
 
 const router = express.Router();
@@ -97,6 +98,58 @@ router.post('/verify', async (req, res) => {
     }
 });
 
+
+// routes/payment.js
+router.get('/status', async (req, res) => {
+    const { userId, trainerId } = req.query;
+
+    // Check if the user has already paid today
+    const existingPayment = await Payment.findOne({
+        userId,
+        trainerId,
+        date: {
+            $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
+            $lte: new Date(new Date().setHours(23, 59, 59, 999)), // End of today
+        },
+    });
+
+    if (existingPayment) {
+        return res.status(200).json({ paidToday: true });
+    } else {
+        return res.status(200).json({ paidToday: false });
+    }
+});
+
+
+// Example API to mark the user as paid for today
+router.post('/mark-paid', async (req, res) => {
+    const { userId, trainerId } = req.body;
+
+    // Check if the user has already paid today
+    const existingPayment = await Payment.findOne({
+        userId,
+        trainerId,
+        date: {
+            $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
+            $lte: new Date(new Date().setHours(23, 59, 59, 999)), // End of today
+        },
+    });
+
+    if (existingPayment) {
+        return res.status(400).json({ message: 'You have already paid today!' });
+    }
+
+    // If not already paid, create the payment record
+    const payment = new Payment({
+        userId,
+        trainerId,
+        status: 'paid',
+    });
+
+    await payment.save();
+
+    res.status(200).json({ message: 'Payment marked successfully.' });
+});
 
 // router.post('/verify', async (req, res) => {
 //     try {
