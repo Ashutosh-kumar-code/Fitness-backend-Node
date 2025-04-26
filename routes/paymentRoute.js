@@ -46,22 +46,23 @@ console.log('KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET, "====",userId, train
 });
 
 // Razorpay API - Verify Payment + Save Subscription
-
 router.post('/verify', async (req, res) => {
     try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId, trainerId, amount } = req.body;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId, trainerId, amount, type } = req.body;
 
-        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-            return res.status(400).json({ message: 'Missing payment fields' });
+        // Check if important fields are missing
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !userId || !trainerId || !amount || !type) {
+            return res.status(400).json({ message: 'Missing required fields' });
         }
 
+        // Generate signature to verify payment
         const generatedSignature = crypto
-            .createHmac('sha256', "aBlmby0CKBz0EOLozrLhYMSS")
+            .createHmac('sha256', "aBlmby0CKBz0EOLozrLhYMSS") // Secret key
             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest('hex');
 
         if (generatedSignature !== razorpay_signature) {
-            console.log('Signature Mismatch!');
+            console.log('❌ Signature Mismatch!');
             return res.status(400).json({ message: 'Invalid payment signature' });
         }
 
@@ -69,10 +70,10 @@ router.post('/verify', async (req, res) => {
 
         // Check if user already paid today
         const existingSubscription = await Subscription.findOne({
-            user: userId,
+            userId: userId,
             createdAt: {
-                $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                $lte: new Date(new Date().setHours(23, 59, 59, 999))
+                $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of day
+                $lte: new Date(new Date().setHours(23, 59, 59, 999)) // End of day
             }
         });
 
@@ -80,34 +81,44 @@ router.post('/verify', async (req, res) => {
             return res.status(400).json({ message: 'You have already paid today!' });
         }
 
+        // Get admin commission info
         const admin = await Admin.findOne({});
-        if (!admin) return res.status(500).json({ message: 'Admin data not found' });
+        if (!admin) {
+            return res.status(500).json({ message: 'Admin data not found' });
+        }
 
         const commissionAmount = (admin.commissionPercentage / 100) * amount;
         const trainerAmount = amount - commissionAmount;
 
+        // ✅ Calculate expiry date (e.g., +30 days from today)
+        const calculatedExpiryDate = new Date();
+        calculatedExpiryDate.setDate(calculatedExpiryDate.getDate() + 30);
+
+        // Create new subscription record
         const newSubscription = new Subscription({
-            razorpay_signature: req.body.razorpay_signature,
-            razorpay_payment_id: req.body.razorpay_payment_id,
-            razorpay_order_id: req.body.razorpay_order_id,
-            type: req.body.type,
+            razorpay_signature,
+            razorpay_payment_id,
+            razorpay_order_id,
+            type,
             expiresAt: calculatedExpiryDate,
-            trainerId: req.body.trainerId,
-            userId: req.body.userId,
+            trainerId,
+            userId,
+            amount,
+            trainerAmount,
+            commissionAmount,
         });
 
         await newSubscription.save();
 
         console.log('✅ Subscription Created Successfully.');
 
-        return res.status(200).json({ message: 'Payment verified and subscription created!' });
+        return res.status(200).json({ message: 'Payment verified and subscription created successfully!' });
 
     } catch (err) {
         console.error('Server error while verifying payment:', err);
         return res.status(500).json({ message: 'Server error during payment verification' });
     }
 });
-
 
 
 // routes/payment.js
