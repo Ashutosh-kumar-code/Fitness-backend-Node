@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Call = require('../models/Calls');
 const User = require('../models/User');
+const Payment = require('../models/Payment'); // import Payment model
+const moment = require('moment'); // import moment
 
 // ✅ API 1: Start a call (deduct user wallet & pay trainer & save call)
 router.post('/start', async (req, res) => {
@@ -19,19 +21,43 @@ router.post('/start', async (req, res) => {
       return res.status(404).json({ message: 'User or trainer not found' });
     }
 
-    if (user.wallet < trainer.feesCall) {
-      return res.status(403).json({ message: 'Insufficient balance' });
+    // 🔥 Check if user has paid for this trainer within last 24 hours
+    const lastPayment = await Payment.findOne({ userId, trainerId }).sort({ paidAt: -1 });
+
+    let alreadyPaid = false;
+    if (lastPayment) {
+      const now = moment();
+      const paidAt = moment(lastPayment.paidAt);
+      const hoursDiff = now.diff(paidAt, 'hours');
+      if (hoursDiff < 24) {
+        alreadyPaid = true;
+      }
     }
 
-    // Deduct from user
-    user.wallet -= trainer.feesCall;
-    await user.save();
+    if (!alreadyPaid) {
+      // ❌ User has not paid within 24 hours
+      if (user.wallet < trainer.feesCall) {
+        return res.status(403).json({ message: 'Insufficient balance' });
+      }
 
-    // Add to trainer
-    trainer.wallet += trainer.feesCall;
-    await trainer.save();
+      // Deduct from user wallet
+      user.wallet -= trainer.feesCall;
+      await user.save();
 
-    // Create call entry
+      // Add to trainer wallet
+      trainer.wallet += trainer.feesCall;
+      await trainer.save();
+
+      // 💾 Create a new Payment record
+      await Payment.create({
+        userId,
+        trainerId,
+        amount: trainer.feesCall,
+        paidAt: new Date(),
+      });
+    }
+
+    // ✅ Start call (create Call entry)
     const call = await Call.create({
       caller: userId,
       receiver: trainerId,
@@ -39,7 +65,9 @@ router.post('/start', async (req, res) => {
     });
 
     res.status(200).json({
-      message: 'Call started successfully',
+      message: alreadyPaid
+        ? 'Call started successfully (Already paid within 24h)'
+        : 'Call started successfully (New payment done)',
       userWallet: user.wallet,
       trainerWallet: trainer.wallet,
       callId: call._id,
@@ -49,7 +77,6 @@ router.post('/start', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 // ✅ API 2: End a call
 router.post('/end', async (req, res) => {
   const { callId } = req.body;

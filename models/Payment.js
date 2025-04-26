@@ -12,6 +12,7 @@ const PaymentSchema = new mongoose.Schema({
         ref: 'User', // Assuming Trainer is also stored in User collection
         required: true,
     },
+    amount: { type: Number },
     date: {
         type: Date,
         default: Date.now,
