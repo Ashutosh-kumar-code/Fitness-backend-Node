@@ -51,29 +51,35 @@ router.post('/verify', async (req, res) => {
     try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId, trainerId, amount } = req.body;
 
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+            return res.status(400).json({ message: 'Missing payment fields' });
+        }
+
         const generatedSignature = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest('hex');
 
         if (generatedSignature !== razorpay_signature) {
+            console.log('Signature Mismatch!');
             return res.status(400).json({ message: 'Invalid payment signature' });
         }
 
-        // ✅ Check if user already paid today
+        console.log('✅ Signature Verified Successfully.');
+
+        // Check if user already paid today
         const existingSubscription = await Subscription.findOne({
-          user: userId,
-          createdAt: {
-            $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-            $lte: new Date(new Date().setHours(23, 59, 59, 999))
-          }
+            user: userId,
+            createdAt: {
+                $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                $lte: new Date(new Date().setHours(23, 59, 59, 999))
+            }
         });
 
         if (existingSubscription) {
             return res.status(400).json({ message: 'You have already paid today!' });
         }
 
-        // ✅ Now allow saving subscription/payment
         const admin = await Admin.findOne({});
         if (!admin) return res.status(500).json({ message: 'Admin data not found' });
 
@@ -90,13 +96,16 @@ router.post('/verify', async (req, res) => {
 
         await newSubscription.save();
 
-        res.status(200).json({ message: 'Payment verified and subscription created!' });
+        console.log('✅ Subscription Created Successfully.');
+
+        return res.status(200).json({ message: 'Payment verified and subscription created!' });
 
     } catch (err) {
-        console.error('Payment verification error:', err);
-        res.status(500).json({ message: 'Server Error' });
+        console.error('Server error while verifying payment:', err);
+        return res.status(500).json({ message: 'Server error during payment verification' });
     }
 });
+
 
 
 // routes/payment.js
