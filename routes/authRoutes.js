@@ -158,7 +158,7 @@ router.get('/profile/:id', async (req, res) => {
   });
 
 // Get all verified trainers filtered by trainerType
-router.get('/verified-trainers', async (req, res) => {
+router.post('/verified-trainers', async (req, res) => {
   try {
       const { trainerType } = req.body;
 
