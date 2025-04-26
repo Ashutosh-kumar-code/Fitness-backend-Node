@@ -7,23 +7,29 @@ const cloudinary = require('../config/cloudinory');
 const router = express.Router();
 
 // 📦 Multer setup
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
-});
-const upload = multer({ storage });
 
 // 📝 Create Blog (with optional image upload)
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// 📝 Create Blog (with direct image upload to Cloudinary)
 router.post('/create', upload.single('image'), async (req, res) => {
     try {
         const { title, content, userId, role } = req.body;
         if (!userId || !role) return res.status(400).json({ message: 'User ID and role required' });
 
         let imageUrl = '';
+
         if (req.file) {
-            const result = await cloudinary.uploader.upload(req.file.path, { folder: 'blogs' });
+            // Convert buffer to base64
+            const base64Image = req.file.buffer.toString('base64');
+            const dataUri = `data:${req.file.mimetype};base64,${base64Image}`;
+
+            const result = await cloudinary.uploader.upload(dataUri, {
+                folder: 'blogs'
+            });
+
             imageUrl = result.secure_url;
-            fs.unlinkSync(req.file.path);
         }
 
         const blog = new Blog({
@@ -37,9 +43,11 @@ router.post('/create', upload.single('image'), async (req, res) => {
         await blog.save();
         res.status(201).json({ message: 'Blog posted successfully', blog });
     } catch (error) {
-        res.status(500).json({ message: 'Error posting blog', error });
+        console.error('Error creating blog:', error);
+        res.status(500).json({ message: 'Error posting blog', error: error.message });
     }
 });
+
 
 // 🧠 Get All Blogs with Filters + Comments + Like Info
 router.get('/', async (req, res) => {
