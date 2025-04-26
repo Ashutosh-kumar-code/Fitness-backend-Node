@@ -87,11 +87,13 @@ router.post('/verify', async (req, res) => {
         const trainerAmount = amount - commissionAmount;
 
         const newSubscription = new Subscription({
-            user: userId,
-            trainer: trainerId,
-            amount: amount,
-            adminCommission: commissionAmount,
-            trainerAmount: trainerAmount,
+            razorpay_signature: req.body.razorpay_signature,
+            razorpay_payment_id: req.body.razorpay_payment_id,
+            razorpay_order_id: req.body.razorpay_order_id,
+            type: req.body.type,
+            expiresAt: calculatedExpiryDate,
+            trainerId: req.body.trainerId,
+            userId: req.body.userId,
         });
 
         await newSubscription.save();
