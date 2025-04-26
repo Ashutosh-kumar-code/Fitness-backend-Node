@@ -4,6 +4,7 @@ const razorpay = require('../config/razorpay');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
+const Subscription = require('../models/SubscriptionSchema');
 
 
 const router = express.Router();
@@ -44,12 +45,13 @@ console.log('KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET, "====",userId, train
 });
 
 // Razorpay API - Verify Payment + Save Subscription
+
 router.post('/verify', async (req, res) => {
     try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId, trainerId, amount } = req.body;
 
         const generatedSignature = crypto
-            .createHmac('sha256', 'aBlmby0CKBz0EOLozrLhYMSS')
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest('hex');
 
@@ -57,42 +59,94 @@ router.post('/verify', async (req, res) => {
             return res.status(400).json({ message: 'Invalid payment signature' });
         }
 
-        // Retrieve Admin info for commission
+        // ✅ Check if user already paid today
+        const existingSubscription = await Subscription.findOne({
+          user: userId,
+          createdAt: {
+            $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            $lte: new Date(new Date().setHours(23, 59, 59, 999))
+          }
+        });
+
+        if (existingSubscription) {
+            return res.status(400).json({ message: 'You have already paid today!' });
+        }
+
+        // ✅ Now allow saving subscription/payment
         const admin = await Admin.findOne({});
         if (!admin) return res.status(500).json({ message: 'Admin data not found' });
 
         const commissionAmount = (admin.commissionPercentage / 100) * amount;
         const trainerAmount = amount - commissionAmount;
 
-        // ✅ Add 1-day subscription to user
-        const user = await User.findById(userId);
-        const now = new Date();
-        const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day
+        const newSubscription = new Subscription({
+            user: userId,
+            trainer: trainerId,
+            amount: amount,
+            adminCommission: commissionAmount,
+            trainerAmount: trainerAmount,
+        });
 
-        // Check if already exists for trainer
-        const existing = user.subscriptions.find(sub => sub.trainer.toString() === trainerId);
-        if (existing) {
-            existing.subscribedAt = now;
-            existing.expiresAt = expires;
-        } else {
-            user.subscriptions.push({ trainer: trainerId, subscribedAt: now, expiresAt: expires });
-        }
+        await newSubscription.save();
 
-        // Add earnings to trainer wallet
-        const trainer = await User.findById(trainerId);
-        trainer.wallet += trainerAmount; // Add trainer's share to wallet
-        await trainer.save();
+        res.status(200).json({ message: 'Payment verified and subscription created!' });
 
-        // Log the commission earned
-        console.log(`Admin earned commission: ₹${commissionAmount}`);
-
-        await user.save();
-        res.status(200).json({ message: 'Payment successful and subscription updated' });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Payment verification failed' });
+        console.error('Payment verification error:', err);
+        res.status(500).json({ message: 'Server Error' });
     }
 });
+
+
+// router.post('/verify', async (req, res) => {
+//     try {
+//         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId, trainerId, amount } = req.body;
+
+//         const generatedSignature = crypto
+//             .createHmac('sha256', 'aBlmby0CKBz0EOLozrLhYMSS')
+//             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+//             .digest('hex');
+
+//         if (generatedSignature !== razorpay_signature) {
+//             return res.status(400).json({ message: 'Invalid payment signature' });
+//         }
+
+//         // Retrieve Admin info for commission
+//         const admin = await Admin.findOne({});
+//         if (!admin) return res.status(500).json({ message: 'Admin data not found' });
+
+//         const commissionAmount = (admin.commissionPercentage / 100) * amount;
+//         const trainerAmount = amount - commissionAmount;
+
+//         // ✅ Add 1-day subscription to user
+//         const user = await User.findById(userId);
+//         const now = new Date();
+//         const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day
+
+//         // Check if already exists for trainer
+//         const existing = user.subscriptions.find(sub => sub.trainer.toString() === trainerId);
+//         if (existing) {
+//             existing.subscribedAt = now;
+//             existing.expiresAt = expires;
+//         } else {
+//             user.subscriptions.push({ trainer: trainerId, subscribedAt: now, expiresAt: expires });
+//         }
+
+//         // Add earnings to trainer wallet
+//         const trainer = await User.findById(trainerId);
+//         trainer.wallet += trainerAmount; // Add trainer's share to wallet
+//         await trainer.save();
+
+//         // Log the commission earned
+//         console.log(`Admin earned commission: ₹${commissionAmount}`);
+
+//         await user.save();
+//         res.status(200).json({ message: 'Payment successful and subscription updated' });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ message: 'Payment verification failed' });
+//     }
+// });
 
 // Get Subscriptions for a User
 router.get('/subscriptions/:userId', async (req, res) => {
