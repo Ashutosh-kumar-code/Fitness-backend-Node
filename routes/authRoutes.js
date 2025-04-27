@@ -127,7 +127,7 @@ router.get('/profile/:id', async (req, res) => {
   });
   
   // ===== Update Profile =====
-  router.put('/profile/update', upload.single('profileImageFile'), async (req, res) => {
+  router.put('/profile/update', async (req, res) => {
     try {
       const {
         userId,
@@ -146,7 +146,7 @@ router.get('/profile/:id', async (req, res) => {
         tagline,
         feesChat,
         feesCall,
-        profileImage,
+        profileImage, // 👈 now we only receive Cloudinary URL here
       } = req.body;
   
       const updateData = {
@@ -157,14 +157,9 @@ router.get('/profile/:id', async (req, res) => {
         gender,
         city,
         bio,
-        languages: JSON.parse(languages),  // 👈 remember to parse JSON string to array
+        languages: typeof languages === 'string' ? JSON.parse(languages) : languages, // parse if needed
+        profileImage, // 👈 directly save Cloudinary URL or existing URL
       };
-  
-      if (req.file) {
-        updateData.profileImage = req.file.path;  // 👈 uploaded new image
-      } else if (profileImage) {
-        updateData.profileImage = profileImage;  // 👈 use old image if no new upload
-      }
   
       if (trainerType) {
         updateData.trainerType = trainerType;
@@ -176,7 +171,7 @@ router.get('/profile/:id', async (req, res) => {
         updateData.feesCall = feesCall;
       }
   
-      await User.findByIdAndUpdate(userId, updateData);
+      await User.findByIdAndUpdate(userId, updateData, { new: true });
   
       res.status(200).json({ message: 'Profile updated successfully' });
     } catch (error) {
