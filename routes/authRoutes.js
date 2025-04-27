@@ -127,30 +127,58 @@ router.get('/profile/:id', async (req, res) => {
   });
   
   // ===== Update Profile =====
-  router.put('/profile/update', upload.single('profileImage'), async (req, res) => {
+  router.put('/profile/update', upload.single('profileImageFile'), async (req, res) => {
     try {
-      const { userId, password, ...updateData } = req.body;
-      if (!userId) return res.status(400).json({ message: 'User ID is required' });
-  
-      // Handle new profile image upload
-      if (req.file) {
-        const result = await cloudinary.uploader.upload(req.file.path, { folder: 'users' });
-        updateData.profileImage = result.secure_url;
-        fs.unlinkSync(req.file.path);
-      }
-  
-      // If password is being updated, hash it
-      if (password) {
-        updateData.password = await bcrypt.hash(password, 10);
-      }
-  
-      const updatedUser = await User.findByIdAndUpdate(
+      const {
         userId,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      ).select('-password');
+        name,
+        email,
+        phoneNumber,
+        age,
+        gender,
+        city,
+        bio,
+        languages,
+        trainerType,
+        experience,
+        currentOccupation,
+        availableTimings,
+        tagline,
+        feesChat,
+        feesCall,
+        profileImage,
+      } = req.body;
   
-      res.json({ message: 'Profile updated successfully', user: updatedUser });
+      const updateData = {
+        name,
+        email,
+        phoneNumber,
+        age,
+        gender,
+        city,
+        bio,
+        languages: JSON.parse(languages),  // 👈 remember to parse JSON string to array
+      };
+  
+      if (req.file) {
+        updateData.profileImage = req.file.path;  // 👈 uploaded new image
+      } else if (profileImage) {
+        updateData.profileImage = profileImage;  // 👈 use old image if no new upload
+      }
+  
+      if (trainerType) {
+        updateData.trainerType = trainerType;
+        updateData.experience = experience;
+        updateData.currentOccupation = currentOccupation;
+        updateData.availableTimings = availableTimings;
+        updateData.tagline = tagline;
+        updateData.feesChat = feesChat;
+        updateData.feesCall = feesCall;
+      }
+  
+      await User.findByIdAndUpdate(userId, updateData);
+  
+      res.status(200).json({ message: 'Profile updated successfully' });
     } catch (error) {
       console.error('Update profile error:', error);
       res.status(500).json({ message: 'Error updating profile' });
