@@ -28,6 +28,7 @@ const UserSchema = new mongoose.Schema({
     feesChat: { type: Number },
     feesCall: { type: Number },
     verified: { type: Boolean, default: false },
+    uId: { type: Number, unique: true },
 
      // New fields for OTP
      phoneVerified: { type: Boolean, default: false },

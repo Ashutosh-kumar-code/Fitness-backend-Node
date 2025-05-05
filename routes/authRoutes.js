@@ -14,6 +14,18 @@ const storage = multer.diskStorage({
   });
   const upload = multer({ storage });
 
+// Helper to generate unique numeric uId
+async function generateUniqueUId() {
+  let isUnique = false;
+  let uId;
+  while (!isUnique) {
+    uId = Math.floor(100000 + Math.random() * 900000); // 6-digit number
+    const existing = await User.findOne({ uId });
+    if (!existing) isUnique = true;
+  }
+  return uId;
+}
+
 // **User/Trainer Registration**
 router.post('/register', upload.single('profileImage'), async (req, res) => {
     const {
@@ -55,6 +67,7 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
       }
   
       const hashedPassword = await bcrypt.hash(password, 10);
+      const uId = await generateUniqueUId(); // 🔑 Generate unique numeric uId
   
       const user = new User({
         name,
@@ -74,7 +87,8 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
         availableTimings,
         tagline,
         feesChat,
-        feesCall
+        feesCall,
+        uId // 👈 Save generated uId
       });
   
       await user.save();
@@ -241,6 +255,20 @@ router.put('/verify-trainer', async (req, res) => {
     }
 });
 
+
+
+// Route to get all users
+router.get('/allusers', async (req, res) => {
+  try {
+    const usersWithUId = await User.find({ uId: { $exists: true, $ne: null } })
+      .select('-password -phoneVerificationCode'); // exclude sensitive fields
+
+    res.status(200).json(usersWithUId);
+  } catch (error) {
+    console.error('Error fetching users with uId:', error);
+    res.status(500).json({ message: 'Server error while fetching users' });
+  }
+});
 
 
 module.exports = router;
